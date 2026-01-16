@@ -7,6 +7,10 @@ let currentBlocks = [];
 let draggedBlock = null;
 let draggedBlockIndex = null;
 
+// Cached DOM elements for performance
+let cellElements = [];
+let cellRects = [];
+
 // Block Shapes (Tetris-like pieces)
 const BLOCK_SHAPES = [
     // Single block
@@ -97,33 +101,54 @@ function initGame() {
 // Create Grid
 function createGrid() {
     gameGrid.innerHTML = '';
+    cellElements = [];
+
     for (let row = 0; row < GRID_SIZE; row++) {
+        cellElements[row] = [];
         for (let col = 0; col < GRID_SIZE; col++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.dataset.row = row;
             cell.dataset.col = col;
             gameGrid.appendChild(cell);
+            cellElements[row][col] = cell;
         }
     }
     updateGridDisplay();
 }
 
+// Cache cell positions (call on resize/scroll)
+function cacheCellRects() {
+    cellRects = [];
+    for (let row = 0; row < GRID_SIZE; row++) {
+        cellRects[row] = [];
+        for (let col = 0; col < GRID_SIZE; col++) {
+            const rect = cellElements[row][col].getBoundingClientRect();
+            cellRects[row][col] = {
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom
+            };
+        }
+    }
+}
+
 // Update Grid Display
 function updateGridDisplay() {
-    const cells = gameGrid.querySelectorAll('.cell');
-    cells.forEach(cell => {
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
-        const color = grid[row][col];
-        if (color) {
-            cell.classList.add('filled');
-            cell.style.background = color;
-        } else {
-            cell.classList.remove('filled');
-            cell.style.background = '';
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            const cell = cellElements[row][col];
+            const color = grid[row][col];
+            if (color) {
+                cell.classList.add('filled');
+                cell.style.background = color;
+            } else {
+                cell.classList.remove('filled');
+                cell.style.background = '';
+            }
         }
-    });
+    }
 }
 
 // Check if a specific shape can be placed anywhere on the grid
@@ -241,6 +266,9 @@ function setupDragAndDrop(element, blockIndex) {
 function startDrag(e, blockIndex) {
     if (currentBlocks[blockIndex].used) return;
 
+    // Cache cell positions at start of drag
+    cacheCellRects();
+
     draggedBlock = currentBlocks[blockIndex];
     draggedBlockIndex = blockIndex;
 
@@ -271,15 +299,14 @@ function startDrag(e, blockIndex) {
         return { x: event.clientX, y: event.clientY };
     };
 
+    // Use cached cell positions for fast lookup
     const findTargetCell = (x, y) => {
-        const cells = gameGrid.querySelectorAll('.cell');
-        for (const cell of cells) {
-            const rect = cell.getBoundingClientRect();
-            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-                return {
-                    row: parseInt(cell.dataset.row),
-                    col: parseInt(cell.dataset.col)
-                };
+        for (let row = 0; row < GRID_SIZE; row++) {
+            for (let col = 0; col < GRID_SIZE; col++) {
+                const rect = cellRects[row][col];
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    return { row, col };
+                }
             }
         }
         return null;
@@ -296,7 +323,6 @@ function startDrag(e, blockIndex) {
 
         const cell = findTargetCell(coords.x, coords.y);
         if (cell) {
-            // Apply offset to center the block on cursor
             currentTargetRow = cell.row - offsetRows;
             currentTargetCol = cell.col - offsetCols;
             highlightPlacement(currentTargetRow, currentTargetCol, shape);
@@ -337,33 +363,30 @@ function startDrag(e, blockIndex) {
 }
 
 function createFloatingBlock(shape, color) {
-    // Use smaller cells on mobile
     const isMobile = window.innerWidth <= 480;
     const cellSize = isMobile ? 22 : 28;
 
     const block = document.createElement('div');
-    block.style.position = 'fixed';
-    block.style.pointerEvents = 'none';
-    block.style.zIndex = '10000';
-    block.style.transform = 'translate(-50%, -50%) scale(1.1)';
-    block.style.display = 'grid';
-    block.style.gridTemplateColumns = `repeat(${shape[0].length}, ${cellSize}px)`;
-    block.style.gap = '3px';
-    block.style.filter = 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))';
+    block.style.cssText = `
+        position: fixed;
+        pointer-events: none;
+        z-index: 10000;
+        transform: translate(-50%, -50%);
+        display: grid;
+        grid-template-columns: repeat(${shape[0].length}, ${cellSize}px);
+        gap: 3px;
+        opacity: 0.9;
+    `;
 
     shape.forEach(row => {
         row.forEach(cell => {
             const cellDiv = document.createElement('div');
+            cellDiv.style.width = cellSize + 'px';
+            cellDiv.style.height = cellSize + 'px';
             if (cell) {
-                cellDiv.style.width = cellSize + 'px';
-                cellDiv.style.height = cellSize + 'px';
                 cellDiv.style.background = color;
-                cellDiv.style.borderRadius = '6px';
-                cellDiv.style.border = '1px solid rgba(255,255,255,0.3)';
-                cellDiv.style.boxShadow = 'inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)';
-            } else {
-                cellDiv.style.width = cellSize + 'px';
-                cellDiv.style.height = cellSize + 'px';
+                cellDiv.style.borderRadius = '5px';
+                cellDiv.style.border = '1px solid rgba(255,255,255,0.25)';
             }
             block.appendChild(cellDiv);
         });
@@ -375,17 +398,14 @@ function createFloatingBlock(shape, color) {
 function highlightPlacement(row, col, shape) {
     const isValid = canPlaceBlock(row, col, shape);
 
-    // Highlight the block placement cells
+    // Highlight the block placement cells using cached elements
     for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
             if (shape[r][c]) {
                 const targetRow = row + r;
                 const targetCol = col + c;
                 if (targetRow >= 0 && targetRow < GRID_SIZE && targetCol >= 0 && targetCol < GRID_SIZE) {
-                    const cell = gameGrid.querySelector(`[data-row="${targetRow}"][data-col="${targetCol}"]`);
-                    if (cell) {
-                        cell.classList.add(isValid ? 'hover-valid' : 'hover-invalid');
-                    }
+                    cellElements[targetRow][targetCol].classList.add(isValid ? 'hover-valid' : 'hover-invalid');
                 }
             }
         }
@@ -394,19 +414,17 @@ function highlightPlacement(row, col, shape) {
     // If valid placement, check for line clears and highlight them
     if (isValid) {
         const linesToClear = getLinesToClearPreview(row, col, shape);
-        linesToClear.forEach(line => {
+        for (const line of linesToClear) {
             if (line.type === 'row') {
                 for (let c = 0; c < GRID_SIZE; c++) {
-                    const cell = gameGrid.querySelector(`[data-row="${line.index}"][data-col="${c}"]`);
-                    if (cell) cell.classList.add('will-clear');
+                    cellElements[line.index][c].classList.add('will-clear');
                 }
             } else {
                 for (let r = 0; r < GRID_SIZE; r++) {
-                    const cell = gameGrid.querySelector(`[data-row="${r}"][data-col="${line.index}"]`);
-                    if (cell) cell.classList.add('will-clear');
+                    cellElements[r][line.index].classList.add('will-clear');
                 }
             }
-        });
+        }
     }
 }
 
@@ -444,9 +462,11 @@ function getLinesToClearPreview(row, col, shape) {
 }
 
 function clearHighlights() {
-    gameGrid.querySelectorAll('.cell').forEach(cell => {
-        cell.classList.remove('hover-valid', 'hover-invalid', 'will-clear');
-    });
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            cellElements[row][col].classList.remove('hover-valid', 'hover-invalid', 'will-clear');
+        }
+    }
 }
 
 function canPlaceBlock(row, col, shape) {
@@ -578,25 +598,26 @@ function clearLines(lines) {
 }
 
 function createParticles(cell) {
+    // Reduced particles for better performance
     const rect = cell.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 3; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         particle.style.left = centerX + 'px';
         particle.style.top = centerY + 'px';
-        particle.style.background = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+        particle.style.background = '#fff';
 
-        const angle = (Math.PI * 2 * i) / 8;
-        const distance = 50 + Math.random() * 50;
+        const angle = (Math.PI * 2 * i) / 3;
+        const distance = 30 + Math.random() * 30;
         particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
         particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
 
         particlesContainer.appendChild(particle);
 
-        setTimeout(() => particle.remove(), 1000);
+        setTimeout(() => particle.remove(), 600);
     }
 }
 
