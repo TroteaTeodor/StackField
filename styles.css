@@ -72,14 +72,23 @@ body {
     background: var(--bg-darker);
     color: var(--text-primary);
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: var(--spacing-sm);
-    overflow-x: hidden;
+    padding: var(--spacing-xs);
+    padding-top: max(var(--spacing-xs), env(safe-area-inset-top));
+    padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom));
+    padding-left: max(var(--spacing-xs), env(safe-area-inset-left));
+    padding-right: max(var(--spacing-xs), env(safe-area-inset-right));
+    overflow: hidden; /* Prevent any scrolling */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Animated Background */
@@ -114,28 +123,33 @@ body::before {
 .game-container {
     width: 100%;
     max-width: 500px;
+    height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-xs);
     position: relative;
     z-index: 1;
+    padding: var(--spacing-xs) 0;
 }
 
 /* Header */
 .game-header {
     background: var(--bg-glass);
     backdrop-filter: blur(10px);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
     display: flex;
     justify-content: space-between;
     align-items: center;
     box-shadow: var(--shadow-md);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
 }
 
 .logo h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 800;
     background: var(--primary-gradient);
     -webkit-background-clip: text;
@@ -225,10 +239,15 @@ body::before {
 .grid-wrapper {
     background: var(--bg-glass);
     backdrop-filter: blur(10px);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
     box-shadow: var(--shadow-md);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Game Grid */
@@ -236,11 +255,14 @@ body::before {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
     grid-template-rows: repeat(8, 1fr);
-    gap: 4px;
+    gap: 3px;
     aspect-ratio: 1;
     background: var(--grid-bg);
     border-radius: var(--radius-md);
-    padding: 8px;
+    padding: 6px;
+    width: 100%;
+    max-width: min(100%, calc(100vh - 250px));
+    max-height: 100%;
 }
 
 .cell {
@@ -312,14 +334,16 @@ body::before {
 .blocks-container {
     display: flex;
     justify-content: space-around;
+    align-items: center;
     gap: var(--spacing-sm);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
     background: var(--bg-glass);
     backdrop-filter: blur(10px);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    min-height: 120px;
+    min-height: 100px;
+    flex-shrink: 0;
 }
 
 .block-preview {
@@ -351,24 +375,28 @@ body::before {
 
 /* Block Cells */
 .block-cell {
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
-    box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.3),
-        0 2px 8px rgba(0, 0, 0, 0.3);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    box-shadow:
+        inset 0 2px 4px rgba(255, 255, 255, 0.4),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+        0 3px 8px rgba(0, 0, 0, 0.4);
     transition: all var(--transition-fast);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Instructions */
+/* Instructions - hidden on mobile to save space */
 .instructions {
     text-align: center;
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    padding: var(--spacing-sm);
+    font-size: 0.8rem;
+    padding: var(--spacing-xs);
     background: var(--bg-glass);
     backdrop-filter: blur(10px);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
 }
 
 /* Modal */
@@ -534,33 +562,104 @@ body::before {
 
 /* Responsive Design */
 @media (max-width: 480px) {
+    body {
+        padding: 4px;
+    }
+
     .game-container {
-        gap: var(--spacing-sm);
+        gap: 6px;
+        padding: 4px 0;
+    }
+
+    .game-header {
+        padding: 8px 12px;
     }
 
     .logo h1 {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
 
     .score-value {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
+    }
+
+    .score-label {
+        font-size: 0.65rem;
+    }
+
+    .high-score-label {
+        font-size: 0.6rem;
+    }
+
+    .grid-wrapper {
+        padding: 8px;
+    }
+
+    .grid {
+        gap: 2px;
+        padding: 4px;
     }
 
     .blocks-container {
-        min-height: 100px;
+        min-height: 85px;
+        padding: 10px;
     }
 
     .block-cell {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+    }
+
+    .instructions {
+        display: none; /* Hide on mobile to save space */
     }
 
     .modal-content h2 {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
 
     .final-score-value {
-        font-size: 2.5rem;
+        font-size: 2rem;
+    }
+
+    .modal-content {
+        padding: var(--spacing-md);
+    }
+
+    .restart-button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 1rem;
+    }
+}
+
+/* Extra small screens */
+@media (max-height: 650px) {
+    .game-header {
+        padding: 6px 10px;
+    }
+
+    .logo h1 {
+        font-size: 1.1rem;
+    }
+
+    .score-value {
+        font-size: 1.1rem;
+    }
+
+    .blocks-container {
+        min-height: 75px;
+        padding: 8px;
+    }
+
+    .block-cell {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+    }
+
+    .instructions {
+        display: none;
     }
 }
 

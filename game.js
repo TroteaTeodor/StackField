@@ -196,20 +196,26 @@ function renderBlockPreview(container, shape, color, index) {
     container.innerHTML = '';
     container.classList.remove('disabled');
 
+    // Responsive cell size
+    const isMobile = window.innerWidth <= 480;
+    const cellSize = isMobile ? 22 : 28;
+
     const blockGrid = document.createElement('div');
     blockGrid.style.display = 'grid';
-    blockGrid.style.gridTemplateColumns = `repeat(${shape[0].length}, 30px)`;
-    blockGrid.style.gap = '2px';
+    blockGrid.style.gridTemplateColumns = `repeat(${shape[0].length}, ${cellSize}px)`;
+    blockGrid.style.gap = '3px';
 
     shape.forEach(row => {
         row.forEach(cell => {
             const cellDiv = document.createElement('div');
             if (cell) {
                 cellDiv.className = 'block-cell';
+                cellDiv.style.width = cellSize + 'px';
+                cellDiv.style.height = cellSize + 'px';
                 cellDiv.style.background = color;
             } else {
-                cellDiv.style.width = '30px';
-                cellDiv.style.height = '30px';
+                cellDiv.style.width = cellSize + 'px';
+                cellDiv.style.height = cellSize + 'px';
             }
             blockGrid.appendChild(cellDiv);
         });
@@ -331,24 +337,33 @@ function startDrag(e, blockIndex) {
 }
 
 function createFloatingBlock(shape, color) {
+    // Use smaller cells on mobile
+    const isMobile = window.innerWidth <= 480;
+    const cellSize = isMobile ? 22 : 28;
+
     const block = document.createElement('div');
     block.style.position = 'fixed';
     block.style.pointerEvents = 'none';
     block.style.zIndex = '10000';
-    block.style.transform = 'translate(-50%, -50%)';
+    block.style.transform = 'translate(-50%, -50%) scale(1.1)';
     block.style.display = 'grid';
-    block.style.gridTemplateColumns = `repeat(${shape[0].length}, 30px)`;
-    block.style.gap = '2px';
+    block.style.gridTemplateColumns = `repeat(${shape[0].length}, ${cellSize}px)`;
+    block.style.gap = '3px';
+    block.style.filter = 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))';
 
     shape.forEach(row => {
         row.forEach(cell => {
             const cellDiv = document.createElement('div');
             if (cell) {
-                cellDiv.className = 'block-cell';
+                cellDiv.style.width = cellSize + 'px';
+                cellDiv.style.height = cellSize + 'px';
                 cellDiv.style.background = color;
+                cellDiv.style.borderRadius = '6px';
+                cellDiv.style.border = '1px solid rgba(255,255,255,0.3)';
+                cellDiv.style.boxShadow = 'inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2)';
             } else {
-                cellDiv.style.width = '30px';
-                cellDiv.style.height = '30px';
+                cellDiv.style.width = cellSize + 'px';
+                cellDiv.style.height = cellSize + 'px';
             }
             block.appendChild(cellDiv);
         });
@@ -625,16 +640,36 @@ function gameOver() {
 
 function updateScore() {
     scoreElement.textContent = score;
+
+    // Update high score in real-time if current score beats it
+    if (score > highScore) {
+        highScore = score;
+        saveHighScore();
+    }
+
     highScoreElement.textContent = highScore;
 }
 
 function saveHighScore() {
-    localStorage.setItem('stackFieldHighScore', highScore);
+    try {
+        localStorage.setItem('stackFieldHighScore', highScore.toString());
+    } catch (e) {
+        console.log('Could not save high score:', e);
+    }
 }
 
 function loadHighScore() {
-    const saved = localStorage.getItem('stackFieldHighScore');
-    highScore = saved ? parseInt(saved) : 0;
+    try {
+        const saved = localStorage.getItem('stackFieldHighScore');
+        highScore = saved ? parseInt(saved, 10) : 0;
+        // Validate the loaded value
+        if (isNaN(highScore) || highScore < 0) {
+            highScore = 0;
+        }
+    } catch (e) {
+        console.log('Could not load high score:', e);
+        highScore = 0;
+    }
 }
 
 // Event Listeners
